@@ -1,0 +1,31 @@
+default:
+    app_name: Pedia Consult
+    recipe:
+    scm: git
+    repository:
+    log_file:
+    writable:
+        dirs:
+        files:
+    shared:
+        dirs:
+        files:
+    slack:
+        apiToken:
+        channel:
+        user:
+        message:
+    keep_releases: 3
+
+environments:
+    production:
+        recipe:
+        host:
+        deployPath:
+        user:
+        password:
+        ssh:
+            port:
+            flags:
+            identityFile:
+
