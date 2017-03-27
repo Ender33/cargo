@@ -10,17 +10,17 @@ class Config
 {
     const PARAM_KEY_SEPARATOR = '.';
 
-    protected static $params = [];
+    protected $params = [];
 
     /**
      * @param string $key
      * @param mixed  $default
      * @return string|array|int|bool
      */
-    public static function getParam($key, $default)
+    public function getParam($key, $default = null)
     {
-        $keyParts = explode('.', $key);
-        $param = self::$params;
+        $keyParts = explode(self::PARAM_KEY_SEPARATOR, $key);
+        $param = $this->params;
         $currentPropertyPath = [];
         foreach ($keyParts as $keyPart) {
             if (!isset($param[$keyPart])) {
@@ -38,14 +38,14 @@ class Config
      * @param string $prefix
      * @return array
      */
-    public static function addParamsFromArray(array $config, $prefix = '')
+    public function addParamsFromArray(array $config, $prefix = '')
     {
         foreach ($config as $name => $configItem) {
             $paramName = $prefix.self::PARAM_KEY_SEPARATOR.$name;
             if (is_array($configItem)) {
-                self::$params = array_merge(self::$params, self::addParamsFromArray($configItem, $paramName));
+                $this->params = array_merge($this->params, $this->addParamsFromArray($configItem, $paramName));
             } else {
-                self::$params[$paramName] = $configItem;
+                $this->params[$paramName] = $configItem;
             }
         }
     }

@@ -2,6 +2,8 @@
 
 namespace Cargo;
 
+use Monolog\Handler\StreamHandler;
+use Monolog\Logger;
 use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Parser;
 
@@ -11,7 +13,9 @@ use Symfony\Component\Yaml\Parser;
  */
 class Context
 {
-    protected $logger;
+    protected static $logger;
+
+    protected static $config;
 
     public function __construct($env, $configFilePath)
     {
@@ -24,34 +28,68 @@ class Context
 
         try {
             $parser = new Parser();
-            $mergedConfig = [];
             $rawConfig = $parser->parse(file_get_contents($configFilePath));
+
+            self::$config = new Config();
             if (!empty($rawConfig['default'])) {
-                Config::addParamsFromArray($rawConfig['default']);
+                self::$config->addParamsFromArray($rawConfig['default']);
             }
             if (!empty($rawConfig['environments'][$env])) {
-                Config::addParamsFromArray($rawConfig['environments'][$env]);
+                self::$config->addParamsFromArray($rawConfig['environments'][$env]);
             }
-            Config::setParams($rawParams);
         } catch (ParseException $exception) {
             throw new \RuntimeException('Error while parsing the file "'.$configFilePath.'".');
         }
 
-        if (array_key_exists('magephp', $config) && is_array($config['magephp'])) {
-            $logger = null;
-            if (array_key_exists('log_dir', $config['magephp']) && file_exists($config['magephp']['log_dir']) && is_dir($config['magephp']['log_dir'])) {
-                $logfile = sprintf('%s/%s.log', $config['magephp']['log_dir'], date('Ymd_His'));
-                $config['magephp']['log_file'] = $logfile;
+        if (self::$config->getParam('log.enabled', false)) {
+            $logDir = self::$config->getParam('log.dir');
 
-                $logger = new Logger('magephp');
-                $logger->pushHandler(new StreamHandler($logfile));
+            if (!is_dir($logDir)) {
+                mkdir($logDir, 0750, true);
+            }
+            if (!is_dir($logDir)) {
+                throw new \RuntimeException(
+                    'The logs directory "'.$logDir.'" does not exist and could not be created.'
+                );
+            }
+            if (!is_writable($logDir)) {
+                throw new \RuntimeException(
+                    'The logs directory "'.$logDir.'" is not writable.'
+                );
             }
 
-            $this->runtime->setConfiguration($config['magephp']);
-            $this->runtime->setLogger($logger);
+            $logFile = $logDir.DIRECTORY_SEPARATOR.$env.'_'.date('Ymd_His').'.log';
+            if (!file_exists($logFile)) {
+                touch($logFile);
+            }
+            if (!file_exists($logFile)) {
+                throw new \RuntimeException(
+                    'The log file "'.$logFile.'" does not exist and could not be created.'
+                );
+            }
+            if (!is_writable($logFile)) {
+                throw new \RuntimeException('The log file "'.$logFile.'" is not writable.');
+            }
+
+            self::$logger = new Logger('cargo', array(new StreamHandler($logFile)));
+
             return;
         }
+    }
 
-        throw new RuntimeException(sprintf('The file "%s" does not have a valid Magallanes configuration.', $this->file));
+    /**
+     * @return Config
+     */
+    public static function getConfig()
+    {
+        return self::$config;
+    }
+
+    /**
+     * @return Logger
+     */
+    public static function getLogger()
+    {
+        return self::$logger;
     }
 }

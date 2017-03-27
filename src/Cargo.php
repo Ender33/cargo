@@ -28,9 +28,10 @@ class Cargo extends Application
     {
         parent::__construct('Cargo', Constants::VERSION);
 
+        self::$context = new Context({env} $configFilePath);
+
         $dispatcher = new EventDispatcher();
         $this->setDispatcher($dispatcher);
-
         $dispatcher->addListener(ConsoleEvents::EXCEPTION, function (ConsoleExceptionEvent $event) {
             $output = $event->getOutput();
             $command = $event->getCommand();
@@ -44,49 +45,6 @@ class Cargo extends Application
         $this->loadCommands();
     }
 
-    /**
-     * @return Context
-     */
-    public function getContext()
-    {
-        if (!self::$context) {
-            self::$context = new Context();
-        }
-
-        return self::$context;
-    }
-
-    /**
-     * Configure the Magallanes Application
-     *
-     * @throws RuntimeException
-     */
-    public function configure()
-    {
-        if (!file_exists($this->file) || !is_readable($this->file)) {
-            throw new RuntimeException(sprintf('The file "%s" does not exists or is not readable.', $this->file));
-        }
-        try {
-            $parser = new Parser();
-            $config = $parser->parse(file_get_contents($this->file));
-        } catch (ParseException $exception) {
-            throw new RuntimeException(sprintf('Error parsing the file "%s".', $this->file));
-        }
-        if (array_key_exists('magephp', $config) && is_array($config['magephp'])) {
-            $logger = null;
-            if (array_key_exists('log_dir', $config['magephp']) && file_exists($config['magephp']['log_dir']) && is_dir($config['magephp']['log_dir'])) {
-                $logfile = sprintf('%s/%s.log', $config['magephp']['log_dir'], date('Ymd_His'));
-                $config['magephp']['log_file'] = $logfile;
-                $logger = new Logger('magephp');
-                $logger->pushHandler(new StreamHandler($logfile));
-            }
-            $this->context->setConfiguration($config['magephp']);
-            $this->context->setLogger($logger);
-            return;
-        }
-        throw new RuntimeException(sprintf('The file "%s" does not have a valid Magallanes configuration.', $this->file));
-    }
-
     protected function loadCommands()
     {
         $finder = new Finder();
@@ -98,7 +56,7 @@ class Cargo extends Application
             if (class_exists($class) && (new \ReflectionClass($class))->isInstantiable()) {
                 $command = new $class();
                 if (method_exists($command, 'setContext')) {
-                    $command->setContext($this->getContext());
+                    $command->setContext(self::$context);
                     $this->add($command);
                 }
             }
