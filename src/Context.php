@@ -8,16 +8,24 @@ use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Parser;
 
 /**
- * Class Context
  * @package Cargo
  */
 class Context
 {
-    protected static $logger;
+    /**
+     * @var string
+     */
+    protected static $env;
 
+    /**
+     * @var Config
+     */
     protected static $config;
 
-    public function __construct($env, $configFilePath)
+    /**
+     * @param string $configFilePath
+     */
+    public function __construct($configFilePath)
     {
         if (!file_exists($configFilePath)) {
             throw new \RuntimeException('The file "'.$configFilePath.'" was not found.');
@@ -41,40 +49,28 @@ class Context
             throw new \RuntimeException('Error while parsing the file "'.$configFilePath.'".');
         }
 
-        if (self::$config->getParam('log.enabled', false)) {
-            $logDir = self::$config->getParam('log.dir');
-
-            if (!is_dir($logDir)) {
-                mkdir($logDir, 0750, true);
-            }
-            if (!is_dir($logDir)) {
-                throw new \RuntimeException(
-                    'The logs directory "'.$logDir.'" does not exist and could not be created.'
-                );
-            }
-            if (!is_writable($logDir)) {
-                throw new \RuntimeException(
-                    'The logs directory "'.$logDir.'" is not writable.'
-                );
-            }
-
-            $logFile = $logDir.DIRECTORY_SEPARATOR.$env.'_'.date('Ymd_His').'.log';
-            if (!file_exists($logFile)) {
-                touch($logFile);
-            }
-            if (!file_exists($logFile)) {
-                throw new \RuntimeException(
-                    'The log file "'.$logFile.'" does not exist and could not be created.'
-                );
-            }
-            if (!is_writable($logFile)) {
-                throw new \RuntimeException('The log file "'.$logFile.'" is not writable.');
-            }
-
-            self::$logger = new Logger('cargo', array(new StreamHandler($logFile)));
-
-            return;
+        if (self::$config->isLoggingEnabled()) {
+            self::initLogger();
         }
+    }
+
+    /**
+     * @return string
+     */
+    public function getEnv()
+    {
+        return $this->env;
+    }
+
+    /**
+     * @param string $env
+     * @return $this
+     */
+    public function setEnv($env)
+    {
+        $this->env = $env;
+
+        return $this;
     }
 
     /**
@@ -83,13 +79,5 @@ class Context
     public static function getConfig()
     {
         return self::$config;
-    }
-
-    /**
-     * @return Logger
-     */
-    public static function getLogger()
-    {
-        return self::$logger;
     }
 }

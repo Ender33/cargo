@@ -49,4 +49,12 @@ class Config
             }
         }
     }
+
+    /**
+     * @return bool
+     */
+    public function isLoggingEnabled()
+    {
+        return (bool) $this->getParam('log.enabled', false);
+    }
 }
